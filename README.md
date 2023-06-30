@@ -12,7 +12,7 @@ The 'calibrationdata.npz' file is currently calibrated for GoPro Hero 11 black.
 
 Can deal with either single file and folder of files 
 
-###Handles 
+### Handles 
 - directory use-request
 - error handling
 - type and metadata search/reading
@@ -21,7 +21,7 @@ Can deal with either single file and folder of files
 - FishEye undistort algorithm of the WIDE Lense if necessary
 
 
-###Requirement
+### Requirement
 If the user passes a folder, it has to contain a 
 'metadata.txt' with _minimal_ structure/information:
 "
@@ -35,7 +35,7 @@ containing the camera lens Height in meters of every photo in the
 given directory. An entirely written example file can also be found here.
 
 
-##ToDo
+## ToDo
 - finishfile()_fct on request >> restructure for embedded use (pass info in init)
 - interactive mode 'on/'off' user_choice >> for embedded or direct use
 - refine wide-lens calibration offsez
