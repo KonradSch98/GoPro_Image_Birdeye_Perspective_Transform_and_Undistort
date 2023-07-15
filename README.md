@@ -47,6 +47,7 @@ given directory. An entirely written example file can also be found here.
 <img src="https://github.com/KonradSch98/GoPro_Image_Birdeye_Perspective_Transform_and_Undistort/blob/main/examples/G0010183_undist_topview.jpg" width="300">
 
 ## ToDo
+- check lens angles in wide mode since far cuttings make a stretched appearence 
 - finishfile()_fct on request >> restructure for embedded use (pass info in init)
 - interactive mode 'on/'off' user_choice >> for embedded or direct use
 - refine wide-lens calibration offset
