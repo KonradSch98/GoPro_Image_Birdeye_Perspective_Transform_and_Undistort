@@ -83,19 +83,21 @@ class BirdeyeProjection():
         
         if self.LenseType == 'Linear':
             
-            print("The files in the 'undistorted' directory are complete and consistent of type:\n"\
-                  'Field of View - Linear\n'\
+            print("The files in the directory are complete and consistent of type:\n"\
+                  '\nField of View - Linear\n'\
                   "You can proceed.")
             self.alpha = [np.radians(94.1) , np.radians(87.06)]
 
 
         elif self.LenseType == 'Wide' and self.MetaStatus == "complete":
-            print("The files in the 'undistorted' directory are complete and consistent of type:\n"\
-                  'Field of View - Wide\n'\
+            print("The (undistorted) files in the directory are complete and consistent of type:\n"\
+                  '\nField of View - Wide\n'\
                   "You can proceed.")
             self.alpha = [np.radians(97) , np.radians(81)]  
             self.Betas = [i + .09 for i in self.Betas]                            #image offset due to undistort
-
+            #those values better for lower heights
+            # self.alpha = [np.radians(98) , np.radians(81)]  
+            # self.Betas = [i + .115 for i in self.Betas] 
 
         elif self.LenseType == 'Wide' and self.MetaStatus == "incomplete":    
             #call undistort class
@@ -118,6 +120,7 @@ class BirdeyeProjection():
                     UndistortGopro(self.ImgDir).Undistort()
                 
                 shutil.copy(self.ImgDir + "//metadata.txt" , self.ImgDir + "//undistorted//metadata.txt")
+                shutil.copy(self.ImgDir + "//timedata.txt" , self.ImgDir + "//undistorted//timedata.txt")
                 self.ImgDir = self.ImgDir + "//undistorted"
 
                 os.chdir(self.ImgDir)
@@ -128,7 +131,9 @@ class BirdeyeProjection():
         
             self.alpha = [np.radians(97) , np.radians(81)]  
             self.Betas = [i + .09 for i in self.Betas]                            #image offset due to undistort
-        
+            #those values better for lower heights
+            # self.alpha = [np.radians(98) , np.radians(81)]  
+            # self.Betas = [i + .115 for i in self.Betas]        
         
 
 
@@ -164,6 +169,8 @@ class BirdeyeProjection():
             self.GeometricCalc(self.Height, self.Beta)
             self.Transform()
             self.FinishFile()
+            shutil.copy(self.ImgDir + "//metadata.txt" , self.ImgDir + "//topview//metadata.txt")
+            shutil.copy(self.ImgDir + "//timedata.txt" , self.ImgDir + "//topview//timedata.txt")  
 
 
 
@@ -188,7 +195,9 @@ class BirdeyeProjection():
                 self.GeometricCalc(self.Height, self.Beta)
                 self.Transform()
                 self.FinishFile()
-                i=i+1         
+                i=i+1
+            shutil.copy(self.ImgDir + "//metadata.txt" , self.ImgDir + "//topview//metadata.txt")
+            shutil.copy(self.ImgDir + "//timedata.txt" , self.ImgDir + "//topview//timedata.txt")         
 
 
 
@@ -235,18 +244,7 @@ class BirdeyeProjection():
                 self.ImgDir = os.path.dirname(self.ImgPath)                 #dir of file
                 Type = "file"
                 
-                if Height == None:
-                    print("Please enter the height in meter of the camera in the given Image:")
-                    h = input()
-                    while True:
-                        try: 
-                            h = float(h)
-                            break
-                        except:
-                            print('Please enter the float again.')
-                            h = input()
-                    self.heights = [h]
-                else:
+                if Height is not None:
                     self.heights = [Height]
                     
                 break
@@ -336,7 +334,7 @@ class BirdeyeProjection():
            or checks the metainfo in the specif. files
            if necessary
         2. height known
-           read metainfo from file
+           read tilt and time metainfo from file
            write to .txt
 
         Args:
@@ -346,15 +344,41 @@ class BirdeyeProjection():
         
         
         #if Height information is not already pased (directly or with dir)
-        if  "self.heights" not in locals():
-            try:
-                meta_file = open("metadata.txt", 'r')
-            except FileNotFoundError:
-                print("ERROR: The given directory does not contain a 'metadata.txt' file")
-                exit()
+        if  not hasattr(self, 'heights'):
+            
+            if self.FileType == 'folder':
+                try:
+                    meta_file = open("metadata.txt", 'r')
+                except FileNotFoundError:
+                    print("ERROR: The given directory does not contain a 'metadata.txt' file.\n"
+                          "This is necessary for FileType = 'folder'.")
+                    exit()
+                
+            if self.FileType == 'file':
+                try:
+                    meta_file = open("metadata.txt", 'r')
+                except FileNotFoundError:
+            
+                    print("Please enter the height in meter of the camera in the given Image:")
+                    h = input()
+                    while True:
+                        try: 
+                            h = float(h)
+                            break
+                        except:
+                            print('Please enter the float again.')
+                            h = input()
+                    self.heights = [h]
 
+            
             FileLines = meta_file.readlines()
             meta_file.close()
+            while True:
+                try:
+                    ind = FileLines.index('\n')
+                    FileLines.pop(ind)
+                except:
+                    break
             self.heights = np.zeros(shape=(len(dir_content),))
             self.Betas = np.zeros(shape=(len(dir_content),))
 
@@ -375,9 +399,10 @@ class BirdeyeProjection():
                         exit()
 
                 #check for type and tilt angles
+                TimeStamps = []
                 Types = []
                 for i in range(len(dir_content)):
-                    Types = self.ReadGoproMeta(Img=dir_content[i], Types=Types, Index = i)
+                    Types,TimeStamps = self.ReadGoproMeta(Img=dir_content[i], Types=Types, Index = i, TimeStamps=TimeStamps)
 
                 #check for type consistency
                 if(len(set(Types)) != 1):
@@ -398,6 +423,18 @@ class BirdeyeProjection():
                     meta_file = open("metadata.txt", 'w') 
                     meta_file.writelines(FileLines)
                     meta_file.close()
+                    #update lense type
+                    self.LenseType = FileLines[1].strip('\n')
+                    
+                    FileLines =[]
+                    FileLines.append("TimeStamps\n")
+                    for i, time in enumerate(TimeStamps):
+                        fname = dir_content[i]
+                        FileLines.append(fname[:len(fname)-4] + "\t" + time + "\n")
+                        
+                    time_file = open("timedata.txt", "w")
+                    time_file.writelines(FileLines)
+                    time_file.close
 
 
 
@@ -405,8 +442,22 @@ class BirdeyeProjection():
             elif FileLines[0].strip('\n') == 'Type':
                 
                 self.MetaStatus = "complete"
+                #read lensetype
+                try:
+                    self.LenseType = FileLines[1].strip('\n')
+                except ValueError:
+                    print('\nERROR: Could not read Lensetype from metadata file \n')
+                    exit()
+                #read height
                 
                 for i in range(len(dir_content)):
+                    #read height
+                    try:
+                        self.heights[i] = float(FileLines[i+3])
+                    except ValueError:
+                        print('\nERROR: Number of images unequals number of information in metadata file.\n'\
+                                'Maybe check for not deleted TEMP file. \n')
+                        exit()
                     #read height
                     try:
                         self.heights[i] = float(FileLines[i+3])
@@ -431,12 +482,17 @@ class BirdeyeProjection():
             
             self.Betas = [0]
             #check for type and tilt angles
-            Types = self.ReadGoproMeta(Img=self.Filename)
-            
+            TimeStamps = []
+            Types = []
+            for i, file in enumerate(dir_content):
+                Types,TimeStamps = self.ReadGoproMeta(Img=file, Types=Types, Index = i, TimeStamps=TimeStamps)
+
             FileLines = []
             #write to metafile lines
             FileLines.append('Type\n')
             FileLines.append(Types[0]+"\n")
+            #update lense type
+            self.LenseType = Types[0]
 
             FileLines.append("Heights\n")
             FileLines.append(str(self.heights) + "\n")
@@ -446,11 +502,19 @@ class BirdeyeProjection():
         
             meta_file = open("metadata.txt", 'w') 
             meta_file.writelines(FileLines)
-            meta_file.close()       
+            meta_file.close()  
+            
+            FileLines =[]
+            FileLines.append("TimeStamps\n")
+            for i, time in enumerate(TimeStamps):
+                fname = dir_content[i]
+                FileLines.append(fname[:len(fname)-4] + "\t" + time + "\n")
+                
+            time_file = open("timedata.txt", "w")
+            time_file.writelines(FileLines)
+            time_file.close
+     
 
-
-        #update dir type
-        self.LenseType = FileLines[1].strip('\n')
 
 
 
@@ -461,12 +525,13 @@ class BirdeyeProjection():
 
 
 
-    def ReadGoproMeta(self, Img, Types=None, Index=None):
+    def ReadGoproMeta(self, Img, Types=None, Index=None,TimeStamps=None):
         """
         accesses exiftool meta info from given Img
-        reads tilt angle and FOV type
+        reads time stamp, tilt angle and FOV type
         stores tilt directly in self.Beta using Index
         stores FOV in lists
+        stores FOV in 
 
         Args:
             Img (numpy.ndarray): Image to be read
@@ -477,6 +542,7 @@ class BirdeyeProjection():
 
         Returns:
             Types: list of 'Linear'/'Wide' info of image(s) 
+            TimeStamp: list of time stamps in format '%Y:%m:%d %H:%M:%S' 
         """
         
         
@@ -484,6 +550,8 @@ class BirdeyeProjection():
             Types = []
         if Index == None:
             Index = 0
+        if TimeStamps == None:
+            TimeStamps = []
             
         temp_file = "temp.txt"
         myCommand = 'exiftool' + " -u -j " + self.ImgDir + '\\' + Img + " > " + temp_file
@@ -493,7 +561,7 @@ class BirdeyeProjection():
   
 
         ## find correct line in meta file
-        substring = ["GoPro", "GRAV", "FieldOfView"]
+        substring = ["GoPro", "CreateDate" , "GRAV", "FieldOfView"]
         
         
         for sub in substring:
@@ -508,6 +576,19 @@ class BirdeyeProjection():
                         print("ERROR: There is one or more non-Gopro files in your directory.\n"\
                             "Or the metafile is damaged")
                         exit() 
+            elif sub == "CreateDate":
+                while True:
+                    next_line = temp_meta_file.readline()
+                    i=i+1
+                    if sub in next_line:
+                        #add tilt angle info to beta list
+                        time = next_line.split('"')[3]
+                        TimeStamps.append(time)
+                        break  
+                    elif i>40:
+                        print("ERROR: There is one or more non-Gopro files in your directory.\n"\
+                            "Or the metafile is damaged")
+                        exit()         
             elif sub == "GRAV":
                 while True:
                     next_line = temp_meta_file.readline()
@@ -533,7 +614,7 @@ class BirdeyeProjection():
         temp_meta_file.close()
         os.remove(temp_file)    
 
-        return Types 
+        return Types, TimeStamps
 
 
 
@@ -727,7 +808,7 @@ class BirdeyeProjection():
         
         self.AskVariables()
         
-        #self.Betas = self.Betas * 1.04
+
         ## geometric calculations
         alph_hh = 0.5*self.alpha[0]                          
         alph_hv = 0.5*self.alpha[1]                          
