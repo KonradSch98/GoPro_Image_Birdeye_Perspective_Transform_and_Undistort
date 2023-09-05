@@ -1019,11 +1019,13 @@ class BirdeyeProjection():
 
         if save == 'save':
             print('\nFinishing and saving. This may take a few seconds......')
+            print('... Projected Image ....')
             self.Save(Img,'cv2', folder='topview', Dir=Dir)
-            print('...')
+            print('... Image with scales ....')
             self.SaveScaleimg(Dir)
-            print('...')
+            print('... Save Meta data of Image ....')
             self.SavePixelsize()
+            print('Done Saving.')
             cv2.destroyAllWindows()   
     
         elif save == 'without':
